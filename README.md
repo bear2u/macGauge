@@ -5,6 +5,12 @@
 외부 패키지 없이 동작하며, 앱에서 네트워크 전송이나 관리자 권한을 요구하지 않습니다.
 
 <p align="center">
+  <img src="docs/images/macgauge-menubar.png" alt="MacGauge 패널을 접은 상태: 메뉴 막대에 CPU 41%와 MEM 82% 표시" width="178" />
+</p>
+
+<p align="center">접힌 상태 · 메뉴 막대에서 CPU·메모리 사용률 확인</p>
+
+<p align="center">
   <img src="docs/images/macgauge-panel.jpg" alt="MacGauge 상태바 패널: CPU, 메모리, 디스크, 사용 추이와 정리 화면 바로가기" width="360" />
 </p>
 
