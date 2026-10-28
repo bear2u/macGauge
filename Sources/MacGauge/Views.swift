@@ -113,6 +113,10 @@ struct OverviewView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
+                KeepAwakeControls(model: model)
+                Text("자동 잠자기를 방지합니다. 뚜껑 닫기·수동 잠자기는 막지 않습니다. 뚜껑을 닫고 사용하려면 외장 화면·전원·키보드·마우스를 연결하세요.")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Divider()
                 VStack(alignment: .leading, spacing: 14) {
                     HStack { Text("CPU 사용 추이").font(.headline); Spacer(); Text("최근 최대 2분").font(.caption).foregroundStyle(.secondary) }
                     Sparkline(values: model.history).frame(height: 78)
@@ -299,6 +303,10 @@ struct OptionsMenu: View {
     @ObservedObject var model: AppModel
     var body: some View {
         Menu {
+            Button(model.awakeActive ? "잠자기 방지 끄기" : "잠자기 방지 시작 (설정된 시간)") {
+                if model.awakeActive { model.stopKeepingAwake() } else { model.startKeepingAwake() }
+            }
+            Divider()
             Toggle("상태바에 메모리 표시", isOn: $model.showMemoryInBar)
             Toggle("로그인 시 실행", isOn: Binding(get: { model.loginEnabled }, set: { model.toggleLogin($0) }))
             if model.loginPending { Button("로그인 항목 승인 열기") { SMAppService.openSystemSettingsLoginItems() } }
@@ -327,6 +335,7 @@ struct CompactView: View {
                 Spacer()
                 Text("스왑 \(DisplayFormat.bytes(model.snapshot.swapUsed))").font(.caption).foregroundStyle(.secondary)
             }
+            KeepAwakeControls(model: model)
             Button(action: showDashboard) { HStack { Text("앱 사용량 · 로그·캐시 정리"); Spacer(); Image(systemName: "arrow.up.right") }.padding(.vertical, 4) }.buttonStyle(.borderedProminent)
             HStack { Text(Host.current().localizedName ?? "이 Mac").font(.caption2).foregroundStyle(.secondary); Spacer(); OptionsMenu(model: model) }
         }.padding(20).frame(width: 360).tint(accent)
@@ -336,5 +345,37 @@ struct CompactView: View {
             HStack { Text(label).font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundStyle(.secondary); Spacer(); Text(value).font(.system(size: 12, design: .monospaced)) }
             ProgressView(value: min(1, max(0, fraction))).tint(color)
         }
+    }
+}
+
+struct KeepAwakeControls: View {
+    @ObservedObject var model: AppModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack {
+                Label("잠자기 방지", systemImage: model.awakeActive ? "cup.and.saucer.fill" : "cup.and.saucer")
+                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(model.awakeActive ? accent : .primary)
+                Spacer()
+                Button(model.awakeActive ? "끄기" : "시작") {
+                    if model.awakeActive { model.stopKeepingAwake() } else { model.startKeepingAwake() }
+                }.accessibilityLabel(model.awakeActive ? "잠자기 방지 끄기" : "잠자기 방지 시작")
+            }
+            if model.awakeActive {
+                Text(model.awakeStatus).font(.caption).foregroundStyle(accent)
+            } else {
+                HStack {
+                    Picker("유지 시간", selection: $model.awakeMinutes) {
+                        Text("15분").tag(15); Text("30분").tag(30); Text("1시간").tag(60)
+                        Text("2시간").tag(120); Text("직접 끌 때까지").tag(0)
+                    }.labelsHidden().frame(maxWidth: 145).accessibilityLabel("잠자기 방지 시간")
+                    Spacer()
+                    Toggle("화면도 켜두기", isOn: $model.keepDisplayAwake).toggleStyle(.checkbox).font(.caption)
+                }
+            }
+            Text("자동 잠자기만 방지 · 뚜껑 닫기는 제외").font(.caption2).foregroundStyle(.secondary)
+            if !model.awakeError.isEmpty {
+                Text(model.awakeError).font(.caption).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+            }
+        }.padding(12).background(accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
     }
 }

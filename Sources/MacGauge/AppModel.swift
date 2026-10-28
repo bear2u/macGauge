@@ -23,6 +23,48 @@ import MacGaugeCore
     @Published var hasCPUSample = false
     @Published var hasAppSample = false
     @Published var processError = ""
+    @Published private(set) var awakeActive = false
+    @Published private(set) var awakeRemainingSeconds = 0
+    @Published var awakeMinutes = 60
+    @Published var keepDisplayAwake = false
+    @Published var awakeError = ""
+    private let awakeSession = KeepAwakeSession()
+    private var awakeTimer: Timer?
+
+    var awakeStatus: String {
+        guard awakeActive else { return "꺼짐 · Mac의 기본 설정 사용" }
+        let duration = awakeSession.deadline == nil ? "직접 끌 때까지" : "\(max(1, Int(ceil(Double(awakeRemainingSeconds) / 60))))분 남음"
+        return duration + (awakeSession.keepsDisplayAwake ? " · 화면도 유지" : " · 화면은 꺼져도 됨")
+    }
+
+    func startKeepingAwake() {
+        do {
+            try awakeSession.start(duration: awakeMinutes == 0 ? nil : Double(awakeMinutes) * 60,
+                                   keepDisplayAwake: keepDisplayAwake)
+            awakeError = ""
+            awakeTimer?.invalidate()
+            let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.updateAwakeState() }
+            }
+            awakeTimer = timer
+            RunLoop.main.add(timer, forMode: .common)
+            updateAwakeState()
+        } catch { awakeError = error.localizedDescription }
+    }
+
+    func stopKeepingAwake() {
+        awakeTimer?.invalidate(); awakeTimer = nil
+        awakeSession.stop(); awakeError = ""
+        updateAwakeState()
+    }
+
+    private func updateAwakeState() {
+        awakeSession.expire()
+        awakeActive = awakeSession.isActive
+        awakeRemainingSeconds = awakeSession.deadline.map { max(0, Int(ceil($0.timeIntervalSinceNow))) } ?? 0
+        if !awakeActive { awakeTimer?.invalidate(); awakeTimer = nil }
+        onStatusUpdate?()
+    }
     @Published var loginEnabled = SMAppService.mainApp.status == .enabled
     @Published var loginPending = SMAppService.mainApp.status == .requiresApproval
     @Published var showMemoryInBar = UserDefaults.standard.object(forKey: "showMemoryInBar") as? Bool ?? true {

@@ -64,7 +64,7 @@ private final class StatusPanel: NSPanel {
         item.button?.imagePosition = .imageLeading
         item.button?.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         item.button?.setAccessibilityLabel("MacGauge 시스템 지표")
-        statusPanel = StatusPanel(contentRect: NSRect(x: 0, y: 0, width: 360, height: 430),
+        statusPanel = StatusPanel(contentRect: NSRect(x: 0, y: 0, width: 360, height: 550),
                                   styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         statusPanel.title = "MacGauge 상태바 패널"
         statusPanel.isOpaque = false; statusPanel.backgroundColor = .clear
@@ -74,7 +74,7 @@ private final class StatusPanel: NSPanel {
         statusPanel.dismiss = { [weak self] in self?.hideStatusPanel() }
         statusPanel.contentViewController = NSHostingController(rootView:
             CompactView(model: model, showDashboard: { [weak self] in self?.showWindow() })
-                .frame(width: 360, height: 430)
+                .frame(width: 360, height: 550)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
                 .clipShape(RoundedRectangle(cornerRadius: 18)))
         model.onStatusUpdate = { [weak self] in self?.updateStatus() }
@@ -87,12 +87,14 @@ private final class StatusPanel: NSPanel {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if model.deleting { model.message = "정리를 마친 뒤 종료할 수 있습니다."; showWindow(); return .terminateCancel }
-        model.cancelScan(); return .terminateNow
+        model.cancelScan(); model.stopKeepingAwake(); return .terminateNow
     }
     func updateStatus() {
         let cpu = model.hasCPUSample ? DisplayFormat.percent(model.snapshot.cpu) : "—"
         item.button?.title = " CPU \(cpu)" + (model.showMemoryInBar ? "  MEM \(DisplayFormat.percent(model.snapshot.memoryFraction))" : "")
-        item.button?.toolTip = "MacGauge · 메모리 압력 \(model.pressureTitle) · 디스크 \(DisplayFormat.bytes(model.snapshot.diskFree)) 여유"
+        item.button?.image = NSImage(systemSymbolName: model.awakeActive ? "cup.and.saucer.fill" : "waveform.path.ecg",
+                                    accessibilityDescription: model.awakeActive ? "잠자기 방지 켜짐" : "MacGauge")
+        item.button?.toolTip = "MacGauge · 메모리 압력 \(model.pressureTitle) · 디스크 \(DisplayFormat.bytes(model.snapshot.diskFree)) 여유\n잠자기 방지: \(model.awakeStatus)"
     }
     @objc func togglePopover() {
         if NSApp.currentEvent?.type == .rightMouseUp {
