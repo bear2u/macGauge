@@ -116,6 +116,7 @@ struct OverviewView: View {
                 KeepAwakeControls(model: model)
                 Text("자동 잠자기를 방지합니다. 뚜껑 닫기·수동 잠자기는 막지 않습니다. 뚜껑을 닫고 사용하려면 외장 화면·전원·키보드·마우스를 연결하세요.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                LoginStartControls(model: model)
                 Divider()
                 VStack(alignment: .leading, spacing: 14) {
                     HStack { Text("CPU 사용 추이").font(.headline); Spacer(); Text("최근 최대 2분").font(.caption).foregroundStyle(.secondary) }
@@ -308,7 +309,7 @@ struct OptionsMenu: View {
             }
             Divider()
             Toggle("상태바에 메모리 표시", isOn: $model.showMemoryInBar)
-            Toggle("로그인 시 실행", isOn: Binding(get: { model.loginEnabled }, set: { model.toggleLogin($0) }))
+            Toggle("로그인 후 자동 시작", isOn: Binding(get: { model.loginRequested }, set: { model.toggleLogin($0) }))
             if model.loginPending { Button("로그인 항목 승인 열기") { SMAppService.openSystemSettingsLoginItems() } }
             Divider()
             Button("활성 상태 보기 열기") { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Activity Monitor.app")) }
@@ -377,5 +378,22 @@ struct KeepAwakeControls: View {
                 Text(model.awakeError).font(.caption).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
             }
         }.padding(12).background(accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+struct LoginStartControls: View {
+    @ObservedObject var model: AppModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle(isOn: Binding(get: { model.loginRequested }, set: { model.toggleLogin($0) })) {
+                Label("로그인 후 자동 시작", systemImage: "power")
+                    .font(.system(size: 12, weight: .semibold))
+            }.toggleStyle(.switch)
+            Text(model.loginStatusText).font(.caption).foregroundStyle(.secondary)
+            if model.loginPending {
+                Button("시스템 설정에서 승인") { SMAppService.openSystemSettingsLoginItems() }
+            }
+            if !model.loginError.isEmpty { Text(model.loginError).font(.caption).foregroundStyle(.red) }
+        }.padding(12).background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
     }
 }

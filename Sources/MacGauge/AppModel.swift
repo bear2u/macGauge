@@ -67,6 +67,13 @@ import MacGaugeCore
     }
     @Published var loginEnabled = SMAppService.mainApp.status == .enabled
     @Published var loginPending = SMAppService.mainApp.status == .requiresApproval
+    @Published var loginError = ""
+    var loginRequested: Bool { loginEnabled || loginPending }
+    var loginStatusText: String {
+        if loginEnabled { return "등록됨 · 로그인하면 상태바에서 자동 시작" }
+        if loginPending { return "macOS 시스템 설정에서 승인이 필요합니다." }
+        return "꺼짐 · 재부팅 후 로그인하면 자동 실행할 수 있습니다."
+    }
     @Published var showMemoryInBar = UserDefaults.standard.object(forKey: "showMemoryInBar") as? Bool ?? true {
         didSet { UserDefaults.standard.set(showMemoryInBar, forKey: "showMemoryInBar"); onStatusUpdate?() }
     }
@@ -211,9 +218,18 @@ import MacGaugeCore
         }
     }
     func toggleLogin(_ enabled: Bool) {
+        loginError = ""
         do {
-            if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-        } catch { message = "로그인 실행 설정 실패: \(error.localizedDescription)" }
+            let status = SMAppService.mainApp.status
+            if enabled && status != .enabled && status != .requiresApproval {
+                try SMAppService.mainApp.register()
+            } else if !enabled && (status == .enabled || status == .requiresApproval) {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch { loginError = "자동 시작 설정 실패: \(error.localizedDescription)"; message = loginError }
+        refreshLoginStatus()
+    }
+    func refreshLoginStatus() {
         loginEnabled = SMAppService.mainApp.status == .enabled
         loginPending = SMAppService.mainApp.status == .requiresApproval
     }

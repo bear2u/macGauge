@@ -84,6 +84,7 @@ private final class StatusPanel: NSPanel {
         if firstLaunch || CommandLine.arguments.contains("--show-window") { showWindow() }
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { showWindow(); return true }
+    func applicationDidBecomeActive(_ notification: Notification) { model.refreshLoginStatus() }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if model.deleting { model.message = "정리를 마친 뒤 종료할 수 있습니다."; showWindow(); return .terminateCancel }
@@ -97,6 +98,7 @@ private final class StatusPanel: NSPanel {
         item.button?.toolTip = "MacGauge · 메모리 압력 \(model.pressureTitle) · 디스크 \(DisplayFormat.bytes(model.snapshot.diskFree)) 여유\n잠자기 방지: \(model.awakeStatus)"
     }
     @objc func togglePopover() {
+        model.refreshLoginStatus()
         if NSApp.currentEvent?.type == .rightMouseUp {
             hideStatusPanel()
             let menu = NSMenu()
@@ -140,6 +142,7 @@ private final class StatusPanel: NSPanel {
     }
     @objc func openWindowAction() { showWindow() }
     func showWindow() {
+        model.refreshLoginStatus()
         hideStatusPanel()
         if window == nil {
             let controller = NSHostingController(rootView: DashboardView(model: model))
