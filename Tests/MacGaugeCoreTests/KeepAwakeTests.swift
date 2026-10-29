@@ -14,6 +14,36 @@ private final class FakeSleepDriver: SleepAssertionDriver {
 }
 
 final class KeepAwakeTests: XCTestCase {
+    func testDisplayOffPreservesSystemAssertionAndDeadline() throws {
+        let driver = FakeSleepDriver(), now = Date(timeIntervalSince1970: 100)
+        let session = KeepAwakeSession(driver: driver)
+        try session.start(duration: 60, keepDisplayAwake: true, now: now)
+        session.allowDisplaySleep(now: now.addingTimeInterval(20))
+        XCTAssertTrue(session.isActive)
+        XCTAssertFalse(session.keepsDisplayAwake)
+        XCTAssertEqual(session.deadline, now.addingTimeInterval(60))
+        XCTAssertEqual(driver.released, [2])
+        session.allowDisplaySleep(now: now.addingTimeInterval(30))
+        XCTAssertEqual(driver.released, [2])
+        session.stop()
+        XCTAssertEqual(driver.released, [2, 1])
+    }
+    func testDisplayOffDoesNotStartAnInactiveSession() {
+        let driver = FakeSleepDriver()
+        let observed = KeepAwakeSession(driver: driver)
+        observed.allowDisplaySleep()
+        XCTAssertFalse(observed.isActive)
+        XCTAssertTrue(driver.created.isEmpty)
+        XCTAssertTrue(driver.released.isEmpty)
+    }
+    func testDisplayOffAfterExpirationReleasesAllAssertions() throws {
+        let driver = FakeSleepDriver(), now = Date(timeIntervalSince1970: 100)
+        let session = KeepAwakeSession(driver: driver)
+        try session.start(duration: 60, keepDisplayAwake: true, now: now)
+        session.allowDisplaySleep(now: now.addingTimeInterval(61))
+        XCTAssertFalse(session.isActive)
+        XCTAssertEqual(driver.released, [1, 2])
+    }
     func testTimedSessionRequestsBothAssertionsAndExpires() throws {
         let driver = FakeSleepDriver(), now = Date(timeIntervalSince1970: 100)
         let session = KeepAwakeSession(driver: driver)

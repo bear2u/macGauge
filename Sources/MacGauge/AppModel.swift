@@ -28,6 +28,7 @@ import MacGaugeCore
     @Published var awakeMinutes = 60
     @Published var keepDisplayAwake = false
     @Published var awakeError = ""
+    @Published private(set) var turningDisplayOff = false
     private let awakeSession = KeepAwakeSession()
     private var awakeTimer: Timer?
 
@@ -38,9 +39,21 @@ import MacGaugeCore
     }
 
     func startKeepingAwake() {
+        beginKeepingAwake(duration: awakeMinutes == 0 ? nil : Double(awakeMinutes) * 60)
+    }
+
+    // Used by a local app update to preserve the original session deadline.
+    func resumeKeepingAwake(until deadline: Date, display: Bool) {
+        let remaining = deadline.timeIntervalSinceNow
+        guard remaining.isFinite, remaining > 0 else { return }
+        keepDisplayAwake = display
+        beginKeepingAwake(duration: remaining)
+    }
+
+    private func beginKeepingAwake(duration: TimeInterval?) {
+        guard !turningDisplayOff else { return }
         do {
-            try awakeSession.start(duration: awakeMinutes == 0 ? nil : Double(awakeMinutes) * 60,
-                                   keepDisplayAwake: keepDisplayAwake)
+            try awakeSession.start(duration: duration, keepDisplayAwake: keepDisplayAwake)
             awakeError = ""
             awakeTimer?.invalidate()
             let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
@@ -56,6 +69,25 @@ import MacGaugeCore
         awakeTimer?.invalidate(); awakeTimer = nil
         awakeSession.stop(); awakeError = ""
         updateAwakeState()
+    }
+
+    func turnDisplayOff() {
+        guard !turningDisplayOff else { return }
+        turningDisplayOff = true; awakeError = ""
+        awakeSession.allowDisplaySleep()
+        keepDisplayAwake = false
+        updateAwakeState()
+        Task {
+            defer { turningDisplayOff = false }
+            do {
+                // Let the click/menu dismissal finish before sleeping the display.
+                try await Task.sleep(nanoseconds: 300_000_000)
+                let result = try await Task.detached(priority: .userInitiated) {
+                    try CommandRunner.run("/usr/bin/pmset", ["displaysleepnow"], timeout: 5)
+                }.value
+                if result.status != 0 { awakeError = "화면 끄기 요청에 실패했습니다 (\(result.status))." }
+            } catch { awakeError = "화면 끄기 요청 실패: \(error.localizedDescription)" }
+        }
     }
 
     private func updateAwakeState() {

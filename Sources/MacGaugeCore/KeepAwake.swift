@@ -66,6 +66,14 @@ public final class KeepAwakeSession {
         assertions = []; deadline = nil; keepsDisplayAwake = false
     }
 
+    /// Releases only the display assertion, preserving the system hold and its original deadline.
+    public func allowDisplaySleep(now: Date = Date()) {
+        expire(at: now)
+        guard keepsDisplayAwake else { return }
+        if let display = assertions.popLast() { driver.release(display) }
+        keepsDisplayAwake = false
+    }
+
     @discardableResult public func expire(at now: Date = Date()) -> Bool {
         guard isActive, let deadline, now >= deadline else { return false }
         stop(); return true

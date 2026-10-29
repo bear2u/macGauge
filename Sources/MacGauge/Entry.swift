@@ -64,7 +64,7 @@ private final class StatusPanel: NSPanel {
         item.button?.imagePosition = .imageLeading
         item.button?.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         item.button?.setAccessibilityLabel("MacGauge 시스템 지표")
-        statusPanel = StatusPanel(contentRect: NSRect(x: 0, y: 0, width: 360, height: 550),
+        statusPanel = StatusPanel(contentRect: NSRect(x: 0, y: 0, width: 360, height: 610),
                                   styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         statusPanel.title = "MacGauge 상태바 패널"
         statusPanel.isOpaque = false; statusPanel.backgroundColor = .clear
@@ -74,11 +74,17 @@ private final class StatusPanel: NSPanel {
         statusPanel.dismiss = { [weak self] in self?.hideStatusPanel() }
         statusPanel.contentViewController = NSHostingController(rootView:
             CompactView(model: model, showDashboard: { [weak self] in self?.showWindow() })
-                .frame(width: 360, height: 550)
+                .frame(width: 360, height: 610)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
                 .clipShape(RoundedRectangle(cornerRadius: 18)))
         model.onStatusUpdate = { [weak self] in self?.updateStatus() }
         model.start(); updateStatus()
+        let arguments = CommandLine.arguments
+        if let index = arguments.firstIndex(of: "--resume-awake-until"), index + 1 < arguments.count,
+           let timestamp = Double(arguments[index + 1]), timestamp.isFinite {
+            model.resumeKeepingAwake(until: Date(timeIntervalSince1970: timestamp),
+                                     display: arguments.contains("--resume-display-awake"))
+        }
         let firstLaunch = !UserDefaults.standard.bool(forKey: "hasLaunched")
         UserDefaults.standard.set(true, forKey: "hasLaunched")
         if firstLaunch || CommandLine.arguments.contains("--show-window") { showWindow() }

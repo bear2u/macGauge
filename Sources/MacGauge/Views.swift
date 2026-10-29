@@ -307,6 +307,7 @@ struct OptionsMenu: View {
             Button(model.awakeActive ? "잠자기 방지 끄기" : "잠자기 방지 시작 (설정된 시간)") {
                 if model.awakeActive { model.stopKeepingAwake() } else { model.startKeepingAwake() }
             }
+            Button("화면 즉시 끄기") { model.turnDisplayOff() }.disabled(model.turningDisplayOff)
             Divider()
             Toggle("상태바에 메모리 표시", isOn: $model.showMemoryInBar)
             Toggle("로그인 후 자동 시작", isOn: Binding(get: { model.loginRequested }, set: { model.toggleLogin($0) }))
@@ -374,6 +375,12 @@ struct KeepAwakeControls: View {
                 }
             }
             Text("자동 잠자기만 방지 · 뚜껑 닫기는 제외").font(.caption2).foregroundStyle(.secondary)
+            Button(action: { model.turnDisplayOff() }) {
+                Label(model.turningDisplayOff ? "화면 끄는 중…" : "화면 즉시 끄기", systemImage: "display")
+                    .frame(maxWidth: .infinity)
+            }.disabled(model.turningDisplayOff)
+            Text(model.awakeActive ? "잠자기 방지를 유지하고 화면만 끕니다." : "작업을 계속하려면 잠자기 방지를 먼저 시작하세요.")
+                .font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if !model.awakeError.isEmpty {
                 Text(model.awakeError).font(.caption).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
             }
